@@ -57,13 +57,12 @@ class FC_Joystick:
         self.button4 = False
 
 class FormationControl:
-    def __init__(self, config, freq=10., use_ground_ref=False, ignore_geo_fence=False, verbose=False):
+    def __init__(self, config, freq=10., use_ground_ref=False, verbose=False):
         self.config = config
         self.step = 1. / freq
         self.sens = self.config['sensitivity']
         self.use_ground_ref = use_ground_ref
         self.enabled = True # run control by default
-        self.ignore_geo_fence = ignore_geo_fence
         self.verbose = verbose
         self.ids = self.config['ids']
         self.rotorcrafts = [FC_Rotorcraft(i) for i in self.ids]
@@ -150,8 +149,12 @@ class FormationControl:
             if msg['button2'] == '1' and not self.joystick.button2:
                 self.scale = max(self.scale - self.sens['scale'], self.sens['scale_min'])
             if msg['button4'] == '1' and not self.joystick.button4:
+                print("Formation Disabled")
+                sys.stdout.flush()
                 self.enabled = False
             if msg['button3'] == '1' and not self.joystick.button3:
+                print("Formation Enabled")
+                sys.stdout.flush()
                 self.enabled = True
             self.joystick.button1 = (msg['button1'] == '1')
             self.joystick.button2 = (msg['button2'] == '1')
@@ -185,14 +188,13 @@ class FormationControl:
                 ready = False
             if rc.initialized and 'geo_fence' in self.config.keys():
                 geo_fence = self.config['geo_fence']
-                if not self.ignore_geo_fence:
-                    if (rc.X[0] < geo_fence['x_min'] or rc.X[0] > geo_fence['x_max']
-                            or rc.X[1] < geo_fence['y_min'] or rc.X[1] > geo_fence['y_max']
-                            or rc.X[2] < geo_fence['z_min'] or rc.X[2] > geo_fence['z_max']):
-                        if self.verbose:
-                            print("The rotorcraft", rc.id, " is out of the fence (", rc.X, ", ", geo_fence, ")")
-                            sys.stdout.flush()
-                        ready = False
+                if (rc.X[0] < geo_fence['x_min'] or rc.X[0] > geo_fence['x_max']
+                        or rc.X[1] < geo_fence['y_min'] or rc.X[1] > geo_fence['y_max']
+                        or rc.X[2] < geo_fence['z_min'] or rc.X[2] > geo_fence['z_max']):
+                    if self.verbose:
+                        print("The rotorcraft", rc.id, " is out of the fence (", rc.X, ", ", geo_fence, ")")
+                        sys.stdout.flush()
+                    ready = False
 
         if not ready:
             return
@@ -291,7 +293,6 @@ if __name__ == '__main__':
     parser.add_argument('config_file', help="JSON configuration file")
     parser.add_argument('-f', '--freq', dest='freq', default=10, type=int, help="control frequency")
     parser.add_argument('-gr', '--use_ground_ref', dest='use_ground_ref', default=False, action='store_true', help="use GROUND_REF messages instead of INS messages")
-    parser.add_argument('-igf', '--ignore_geo_fence', dest='ignore_geo_fence', default=False, action='store_true', help="ignore the geo fence limits")
     parser.add_argument('-v', '--verbose', dest='verbose', default=False, action='store_true', help="display debug messages")
     args = parser.parse_args()
 
@@ -304,6 +305,6 @@ if __name__ == '__main__':
         if args.verbose:
             print(json.dumps(conf))
 
-        fc = FormationControl(conf, freq=args.freq, use_ground_ref=args.use_ground_ref, ignore_geo_fence=args.ignore_geo_fence, verbose=args.verbose)
+        fc = FormationControl(conf, freq=args.freq, use_ground_ref=args.use_ground_ref, verbose=args.verbose)
         fc.run()
 
